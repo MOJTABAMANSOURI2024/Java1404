@@ -1,0 +1,120 @@
+package com.example.urlmanager;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.net.Uri;
+import android.os.Bundle;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.*;
+import androidx.appcompat.app.AlertDialog;
+import org.json.JSONArray;
+import org.json.JSONException;
+
+import java.util.ArrayList;
+
+public class MainActivity extends AppCompatActivity {
+
+    EditText editUrl;
+    Button btnAdd;
+    ListView listView;
+    ArrayList<String> urls;
+    ArrayAdapter<String> adapter;
+    SharedPreferences prefs;
+    final String PREF_KEY = "url_list";
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        editUrl = findViewById(R.id.editUrl);
+        btnAdd = findViewById(R.id.btnAdd);
+        listView = findViewById(R.id.listView);
+
+        prefs = getSharedPreferences("MyPrefs", Context.MODE_PRIVATE);
+        urls = loadUrls();
+
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, urls);
+        listView.setAdapter(adapter);
+
+        btnAdd.setOnClickListener(v -> {
+            String url = editUrl.getText().toString().trim();
+            if (!url.isEmpty()) {
+                urls.add(url);
+                adapter.notifyDataSetChanged();
+                saveUrls();
+                editUrl.setText("");
+            }
+        });
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String url = urls.get(position);
+            if (!url.startsWith("http")) {
+                url = "http://" + url;
+            }
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(intent);
+        });
+
+        listView.setOnItemLongClickListener((parent, view, position, id) -> {
+            showOptionsDialog(position);
+            return true;
+        });
+    }
+
+    private void showOptionsDialog(int position) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle                .setItems(new String[]{}, (dialog, which) -> {
+                    if (which == 0) editUrlDialog(position);
+                    else deleteUrl(position);
+                });
+        builder.show();
+    }
+
+    private void editUrlDialog(int position) {
+        EditText input = new EditText(this);
+        input.setText(urls.get(position));
+        new AlertDialog.Builder(this)
+                .setTitle                .setView(input)
+                .setPositiveButton((dialog, which) -> {
+                    urls.set(position, input.getText().toString());
+                    adapter.notifyDataSetChanged();
+                    saveUrls();
+                })
+                .setNegativeButton null)
+                .show();
+    }
+
+    private void deleteUrl(int position) {
+        urls.remove(position);
+        adapter.notifyDataSetChanged();
+        saveUrls();
+    }
+
+    private void saveUrls() {
+        SharedPreferences.Editor editor = prefs.edit();
+        JSONArray jsonArray = new JSONArray(urls);
+        editor.putString(PREF_KEY, jsonArray.toString());
+        editor.apply();
+    }
+
+    private ArrayList<String> loadUrls() {
+        ArrayList<String> list = new ArrayList<>();
+        String json = prefs.getString(PREF_KEY, null);
+        if (json != null) {
+            try {
+                JSONArray jsonArray = new JSONArray(json);
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    list.add(jsonArray.getString(i));
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return list;
+    }
+}
